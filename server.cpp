@@ -169,11 +169,18 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                             // boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
 
                             // clientHandler->sendTo(seeRemoteIp,seeRemotePort,localPortStr);
-                            auto pubstr = seeRemoteIp + std::to_string(seeRemotePort);
+
+                            json pubjson = {
+                                {"ip",seeRemoteIp},
+                                {"port",seeRemotePort}
+                            };
+                            // auto pubstr = seeRemoteIp + std::to_string(seeRemotePort);
+
+                            
                             json nodeInfoSee = {
                                 {"natmapping", "Nonmap"},  //true 表明有mapping 行为
                                 {"natfiltering","Nofilter"},  //true 表明有filtering行为
-                                {"endpoint",{pubstr}}
+                                {"endpoint",{pubjson}}
                             };
 
                             auto hostInfos = nodeInfoSee.dump();
@@ -188,18 +195,34 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                             //如果不一样，说明是nat之后，将路由表的信息发送给对方
                             //这里有个问题，就算不一样也无所谓。广播到所有连接我的人
                             json tst(manHost->_HostList);
+
                             json msg = {
                                 {"msgtype","update"},
                                 {"data",tst}
                             };
-
+                                std::cout<<"is_object"
+                                         <<tst.is_object()
+                                         <<"is_array"
+                                         <<tst.is_array()
+                                         <<"is_string"
+                                         <<tst.is_string()
+                                         <<tst
+                                         <<std::endl;
                             for (auto it = manHost->_HostList.begin();it != manHost->_HostList.end();it++){
-                                json parseit(it->second);
-                                auto tarEndPoint = json::parse(parseit[0].get<std::string>());
+                                auto tarEndPoint = json::parse(it->second);
+                                std::cout<<"is_object"
+                                         <<tarEndPoint.is_object()
+                                         <<"is_array"
+                                         <<tarEndPoint.is_array()
+                                         <<"is_string"
+                                         <<tarEndPoint.is_string()
+                                         <<tarEndPoint
+                                         <<std::endl;
+                                // return ;
                                 std::cout<< "test...." <<tarEndPoint<<std::endl;
 
-                                auto tarIpStr = tarEndPoint["ip"].get<std::string>();
-                                auto tarPortInt = tarEndPoint["port"].get<unsigned short>();
+                                auto tarIpStr = tarEndPoint["endpoint"][0]["ip"].get<std::string>();
+                                auto tarPortInt = tarEndPoint["endpoint"][0]["port"].get<unsigned short>();
 
                                 auto msgstr = msg.dump();
                                 std::cout<< "starting send...." <<msgstr<<std::endl;
@@ -212,20 +235,47 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                         //update 消息成功收到，然后存到本地 开始发送消息到各个节点，有几个发几个，这里并发的发 逐个发
                         std::cout<< "update...." <<recvJson["data"]<<std::endl;
                         //遍历所有的endpoint 除了自己，然后相连
+
+                        std::cout<< "looping...." 
+                                     <<"is_object is_array is_string"
+                                     <<recvJson["data"].is_object()
+                                     <<recvJson["data"].is_array()
+                                     <<recvJson["data"].is_string()
+                                     <<recvJson["data"]
+                                     <<std::endl;
+                                     
                         for (auto it = recvJson["data"].begin();it != recvJson["data"].end();it++){
-                            std::cout<< "looping...." <<*it<<std::endl;
-                            auto item = json::parse((*it)[0].get<std::string>());
-                            auto tarIp = item["ip"].get<string>();
-                            auto tarPort = item["port"].get<unsigned short>();
+                            std::cout<< "looping...." 
+                                     <<*it
+                                     <<"is_object is_array is_string"
+                                     <<it->is_object()
+                                     <<it->is_array()
+                                     <<it->is_string()
+                                     <<std::endl;
+
+                            //map 的字符串只能用着样的方式进行转换
+                            //先转成json 然后获取string 在转成json 真麻烦
+                            json item(*it);
+                            auto itemobj = json::parse(item.get<std::string>());
+                            std::cout<< "item...." 
+                                     <<itemobj
+                                     <<"is_object is_array is_string"
+                                     <<itemobj.is_object()
+                                     <<itemobj.is_array()
+                                     <<itemobj.is_string()
+                                     <<std::endl;
+
+                            auto tarIp = itemobj["endpoint"][0]["ip"].get<string>();
+                            auto tarPort = itemobj["endpoint"][0]["port"].get<unsigned short>();
                             //排除自己的ip
-                            if (item["ip"].get<string>() == _localIp){
+                            if (tarIp == _localIp){
                                 std::cout<<"yourself...."<<std::endl;
                                 continue;
                             }
                             //否则与其他的节点相连
                             json msg = {
                                 {"msgtype","connect"},
-                                {"data","justtest"}
+                                {"data","justtest"} //这里应该是开始连接，根据不同节点的nat类型开始连接
                             };
                             auto msgstr = msg.dump();
                             std::cout<< "start sending connect msg...." <<msgstr<<std::endl;
@@ -404,6 +454,11 @@ void udpServer::threadhandle(){
                 if(finditkey !=  manHost->_HostList.end()){
                     //说明有，则更新下数据
                     findmsg = json::parse(finditkey->second);
+                    std::cout<< "checking filtering....findmsg"
+                             <<findmsg
+                             <<findmsg.is_object()
+                             <<findmsg.is_string()
+                             <<std::endl;
                     findmsg["natfiltering"] = "NonFilter";
                     manHost->_HostList.at(it->first) = findmsg.dump(); // 更新filtering的数据
                 }

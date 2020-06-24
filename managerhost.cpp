@@ -5,14 +5,25 @@
 
 //增加新的节点
 int managerHost::addNewNode(std::string vhostInfo){
-    if (vhostInfo.length() == 0){
-        return 0;
-    }
+    // if (vhostInfo.length() == 0){
+    //     return 0;
+    // // }
+    //                                 {"natmapping", "mapping"},  //true 表明有mapping 行为
+    //                             {"natfiltering",""},  //true 表明有filtering行为
+    //                             {"endpoint",{mapping,nodeinfo}}
     // auto kstring = std::hash<std::string>{}(vhostInfo.front().toString());
-    json toString(vhostInfo);
-    auto k1str = json::parse(toString[0].get<std::string>());
+    json toString = json::parse(vhostInfo);
+    auto k1str = toString["endpoint"][0];
 
-    // std::cout<<"+++++"<<k1str.is_object()<<std::endl;
+    std::cout<<"+++++object:"
+             <<k1str.is_object()
+             <<".....string"
+             <<k1str.is_string()
+             <<"+++++array"
+             <<k1str.is_array()
+             <<"    "
+             <<k1str
+             <<std::endl;
     // return 0;
 
     auto keyString = k1str["ip"].get<std::string>() + std::to_string(k1str["port"].get<unsigned short>());
