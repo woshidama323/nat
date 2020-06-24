@@ -9,7 +9,7 @@ SET (BOOST_MIN_VERSION "1.55.0")
 
 ## 如果不加这一行会报错undefined reference to `pthread_detach'
 
-SET(CMAKE_CXX_FLAGS  "-lpthread -lboost_program_options")
+SET(CMAKE_CXX_FLAGS  "-lpthread -lboost_thread -lboost_timer -lboost_chrono")
 SET(CMAKE_EXE_LINKER_FLAGS 
           "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath -Wl,/usr/local/lib")
 
@@ -18,7 +18,7 @@ SET(CMAKE_EXE_LINKER_FLAGS
 find_package(
   Boost
   ${BOOST_MIN_VERSION}
-  COMPONENTS coroutine filesystem system program_options
+  COMPONENTS coroutine filesystem system chrono thread timer
   REQUIRED)
 if(Boost_FOUND)
   message(STATUS "Found Boost: " ${Boost_LIBRARIES})

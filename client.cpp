@@ -26,7 +26,7 @@ std::string client::LocalIp(std::string & ip){
     // return ip;
 }
 
-int client::sendTo(std::string &remoteIp,unsigned short &remotePort,std::string &localPort){
+int client::sendTo(std::string &remoteIp,unsigned short &remotePort,std::string & msg){//,std::string &localPort
     try{
         // io_service bindIoServer;
         // udpServer* udpServer = new udpServer;
@@ -36,16 +36,16 @@ int client::sendTo(std::string &remoteIp,unsigned short &remotePort,std::string 
         auto localIp = LocalIp(iptmp);
         // // std::cout<<hello->_localIp
         //获取本地ip地址，当前服务的port号
-        std::string msg = std::string("{\"msgtype\":\"detect\",\"data\":{\"localip\":\"why\"}}");
-        json msgj2 = {
-            {"msgtype","detect"},
-            {"data",{
-                {"localip",localIp},
-                {"localport",localPort}
-            }}
-        };
-        msg = msgj2.dump();
-        auto intPort = boost::lexical_cast<unsigned short>(localPort);
+        // std::string msg = std::string("{\"msgtype\":\"detect\",\"data\":{\"localip\":\"why\"}}");
+        // json msgj2 = {
+        //     {"msgtype","detect"},
+        //     {"data",{
+        //         {"localip",localIp},
+        //         {"localport",localPort}
+        //     }}
+        // };
+        // auto msg = msgj2.dump();
+        // auto intPort = boost::lexical_cast<unsigned short>(localPort);
         // auto intRemotePort = boost::lexical_cast<unsigned short>(remotePort);
         // if(std::numeric_limits<unsigned short>::max())
         
@@ -53,7 +53,9 @@ int client::sendTo(std::string &remoteIp,unsigned short &remotePort,std::string 
         boost::system::error_code ignored_error;
         //why need open
         // bindSocket.open(boost::asio::ip::udp::v4());
+        std::cout<<"starting respose:"<<remoteIp<<" port:"<<remotePort<<std::endl;
         _clientSocket->send_to(buffer(msg),remoteEndPoint,0,ignored_error);
+        std::cout<<"finished the sending"<<std::endl;
         return 0;
     }
     catch(const std::exception& e)

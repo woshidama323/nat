@@ -3,10 +3,13 @@
 #include <sstream>
 #include <vector>
 #include <iostream>
+#include "json.hpp"
+#include <boost/lexical_cast.hpp>
+
 /**********************************
 #管理所有client过来的ip port nattype
 #**********************************/
-
+using json = nlohmann::json;
 using namespace std;
 struct hostInfo {
 
@@ -26,19 +29,19 @@ struct hostInfo {
 
 //用于管理host的注册，修改，请求等操作
 class managerHost{
-    private:
-        map<std::string,std::vector<struct hostInfo>> _HostList;
-
     public:
+        map<std::string,std::string> _HostList;
+
+
         
         managerHost() = default;
         //增加一个新的节点
-        int addNewNode(std::vector<struct hostInfo> vhostInfo);
+        int addNewNode(std::string vhostInfo);
         
         //删除节点
         int deleteNode(hostInfo & rmhi);
 
 
-        map<std::string,std::vector<struct hostInfo>> getList();
+        map<std::string,std::string> getList();
 
 };

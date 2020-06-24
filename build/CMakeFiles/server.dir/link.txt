@@ -1,1 +1,0 @@
-/usr/bin/c++ -lpthread -lboost_program_options -g  -Wl,-rpath -Wl,/usr/local/lib CMakeFiles/server.dir/server.cpp.o CMakeFiles/server.dir/client.cpp.o CMakeFiles/server.dir/managerhost.cpp.o CMakeFiles/server.dir/main.cpp.o -o server 

@@ -24,17 +24,29 @@ int main(int argc,char** argv){
         //发送请求到远端服务器，返回收到当前mapping之后的ip port
          auto intRemotePort = boost::lexical_cast<unsigned short>(remotePort);
          auto intLocalPort = boost::lexical_cast<unsigned short>(localPort);
+
          io_service bindIoServer;
-         client clienta(bindIoServer,intLocalPort);
-        clienta.sendTo(remoteServer,intRemotePort,localPort);
+         auto socketPtr = std::make_shared<ip::udp::socket>(bindIoServer,ip::udp::endpoint(ip::address().from_string("0.0.0.0"),intLocalPort));
+         client clienta(bindIoServer,intLocalPort,socketPtr);
+        json msgj2 = {
+            {"msgtype","detect"},
+            {"data",{
+                {"localip","10.0.0.1"},
+                {"localport",localPort}
+            }}
+        };
+        auto str = msgj2.dump();
+        clienta.sendTo(remoteServer,intRemotePort,str);
     });
     
     //服务端模式 本地默认为0.0.0.0 
     std::string remoteServerIp,remoteServerPort,localServerPort;
+    bool mainNode;
     auto servermode = app.add_subcommand("servermode","a udp server for listening");
     servermode->add_option("-s,--remoteserverip",remoteServerIp,"remote server on public network")->mandatory();
     servermode->add_option("-P,--remoteport",remoteServerPort,"the port of remote server")->mandatory();
     servermode->add_option("-p,--localport",localServerPort,"the port of remote server")->mandatory();
+    servermode->add_flag("-m,--mainnode",mainNode,"set as a public node");
  
     
     servermode->callback([&](){
@@ -50,8 +62,25 @@ int main(int argc,char** argv){
             // client sclient(io_service,intLocalPort);
             // sclient.sendTo(remoteServerIp,intRemotePort,localServerPort);
 
-            udpServer server(io_service,intLocalPort);
-            server.clientHandler->sendTo(remoteServerIp,intRemotePort,localServerPort);
+            udpServer server(io_service,intLocalPort,mainNode);
+
+            //发送探测消息,然后进入监控模型，等待回复，如果有回复，则消息体中会有路由表信息，不论你在不在nat下，都会发
+            //获取本地地址
+            auto getip = std::string{""};
+            auto localIpInfo = server.clientHandler->LocalIp(getip);
+            json msgj2 = {
+                {"msgtype","detect"},
+                {"data",{
+                    {"localip",localIpInfo},
+                    {"localport",localServerPort}
+                }}
+            };
+            auto msg = msgj2.dump();
+            server.clientHandler->sendTo(remoteServerIp,intRemotePort,msg);
+            
+            //创建一个定时线程
+            // std::thread threadFunc(server.threadhandle);
+            
             //阻塞在这里
             io_service.run();
             return 0;

@@ -1,3 +1,0 @@
-/backup/build/CMakeFiles/rebuild_cache.dir
-/backup/build/CMakeFiles/server.dir
-/backup/build/CMakeFiles/edit_cache.dir

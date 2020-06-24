@@ -1,19 +1,45 @@
 #include "server.hpp"
 #include <boost/lexical_cast.hpp>
 #include <vector>
+
+
+
 using namespace boost::asio;
 using namespace boost::asio::ip;
 
-udpServer::udpServer(io_service& io_service,const unsigned short port)
-:_socketPtr{std::make_shared<ip::udp::socket>(io_service,ip::udp::endpoint(ip::udp::v4(),port))},clientHandler{make_shared<client>(io_service,port,_socketPtr)}
+udpServer::udpServer(io_service& io_service,const unsigned short port,bool publicflag)
+:_socketPtr{std::make_shared<ip::udp::socket>(io_service,ip::udp::endpoint(ip::udp::v4(),port))}
+,clientHandler{make_shared<client>(io_service,port,_socketPtr)}
+,pulicNodes{}
 {
-    // clientHandler->_clientSocket = _socket;
+    clientHandler->_clientSocket = _socketPtr;
     //初始化managenode;
     manHost = make_shared<managerHost>();
     // getLocalIP();
     // _socket.bind(udp::endpoint(ip::address().from_string(_localIp),61000));
     std::cout<< _socketPtr->local_endpoint().address().to_string()<<" port: "<<_socketPtr->local_endpoint().port()<<std::endl;
     //放在这里，先发送消息到一个服务器中
+
+    auto getIp = std::string{""};
+    _localIp = clientHandler->LocalIp(getIp);
+    _localPort = port;
+
+    //启动一个timer线程，用于监控是否收到过应答消息
+    // std::thread threadFunc(threadhandle);
+    //只有public的节点才会启动该线程 将自己放入到publicnode中
+    if(publicflag){
+        json pubNode = {
+            {"ip",_localIp},
+            {"port",_localPort}
+        };
+        //将自己加入到public节点群中
+        pulicNodes.insert(pubNode.dump());
+
+        threadPtr = make_shared<thread>([this](){
+            std::cout<<"starting timer thread"<<std::endl;
+            threadhandle();
+        });
+    }
 
     startReceive();
 }
@@ -34,7 +60,8 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
         auto seeRemotePort = _remoteEndpoint.port();
 
         std::cout << seeRemoteIp <<" "<< seeRemotePort<<std::endl;
-
+        std::string localIpStr,localPortStr;
+        unsigned short localPortInt;
         try
         {
             //检查是一个有效的json字符串
@@ -43,45 +70,237 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                 if(recvJson.find("msgtype") != recvJson.end()){
                     //说明有这个字段，
                     std::string msgType{""};
+                    std::vector<std::string> hostInfos;
                     recvJson["msgtype"].get_to(msgType);
                     if (msgType == "detect"){
 
-                        auto localIpStr = recvJson["data"]["localip"].get<std::string>();
-                        auto localPortStr = recvJson["data"]["localport"].get<std::string>();
-                        auto localPortInt = boost::lexical_cast<unsigned short>(localPortStr);
+                        localIpStr = recvJson["data"]["localip"].get<std::string>();
+                        localPortStr = recvJson["data"]["localport"].get<std::string>();
+                        localPortInt = boost::lexical_cast<unsigned short>(localPortStr);
 
                         std::cout<<"detect comming:"<< recvJson.dump() <<std::endl;
                         if((seeRemoteIp != localIpStr) || (seeRemotePort != localPortInt) ){
                             std::cout<< "send mapping tyep" << std::endl;
-                            //装入list中
-                            struct hostInfo nodeInfo1, nodeInfo2;
+                            
+                            //通知另外一个节点，开始探测filtering的行为
+                            
+                            //分开装
+                            json mapping ={
+                                {"ip" , seeRemoteIp},
+                                {"port", seeRemotePort}
+                            };
+                            json nodeinfo = {
+                                {"ip" , localIpStr},
+                                {"port", localPortInt}
+                            };
+                            //等确定之后装入list中
+                            json nodeInfoSee = {
+                                {"natmapping", "mapping"},  //true 表明有mapping 行为
+                                {"natfiltering",""},  //true 表明有filtering行为
+                                {"endpoint",{mapping,nodeinfo}}
+                            };
+                            // json nodeInfoSeeBody = {
+                            //     {"ip" , localIpStr},
+                            //     {"port", localPortInt},
+                            //     {"natmapping", true},  //true 表明有mapping 行为
+                            //     {"natfiltering",false}  //true 表明有filtering行为                            };
+                            // };
 
-                            nodeInfo1.ip = seeRemoteIp;
-                            nodeInfo1.port = seeRemotePort;
-
-                            nodeInfo2.ip = recvJson["data"]["localip"];
-                            nodeInfo2.port = localPortInt;
-
-                            std::vector<struct hostInfo> hostInfos;
-                            hostInfos.push_back(nodeInfo1);
-                            hostInfos.push_back(nodeInfo2);
+                            // hostInfos.push_back(nodeInfoSee.dump());
+                            auto hostInfos = nodeInfoSee.dump();
+                            // hostInfos.push_back(nodeInfoSeeBody.dump());
 
                             manHost->addNewNode(hostInfos);
+
+                            //存完之后，通知邻居节点来完成filtering的探测
+                            //风险，会不会形成封杀隐患
+                            //1。获取到邻居的ip和端口号
+                            if (pulicNodes.size()>1){
+                                auto it = pulicNodes.begin();
+                                ++it;
+                                auto neighber = json::parse(*it);
+                                auto ip = neighber["ip"].get<std::string>();
+                                auto port = neighber["port"].get<unsigned short>();
+
+                                //消息的内容是目标的ip地址，肯定是mapping之后的目标
+                                json filteringMsgS = {
+                                    {"msgtype","filteringCheck"},
+                                    {"ip",seeRemoteIp},
+                                    {"port",seeRemotePort}
+                                };
+                                auto filteringMsg = filteringMsgS.dump();
+                                clientHandler->sendTo(ip,port,filteringMsg);
+
+                            }
+                            //2.组装消息发送到对方
                             // manHost.
-                            clientHandler->sendTo(seeRemoteIp,seeRemotePort,localPortStr);
+                            //如果不一样，说明是nat之后，将路由表的信息发送给对方
+                            //这里有个问题，就算不一样也无所谓。广播到所有连接我的人
+                            // json tst(manHost->_HostList);
+                            // json msg = {
+                            //     {"msgtype","update"},
+                            //     {"data",tst}
+                            // };
+
+                            //通知另外一个节点来探索
+                            //需要等到该节点明确知道对方是什么nat类型的时候，update到其他的节点中去
+                            // for (auto it = manHost->_HostList.begin();it != manHost->_HostList.end();it++){
+                            //     json parseit(it->second);
+                            //     std::cout<< "test...." <<parseit<<std::endl;
+                            //     std::cout<< "test####### "<<parseit[0]<<"type : "<<parseit[0].is_string()<<std::endl;
+
+
+                            //     auto tarJson = json::parse(parseit[0].get<std::string>());
+                            //     auto tarIp = tarJson["ip"].get<std::string>();
+                            //     auto tarPort = tarJson["port"].get<unsigned short>();
+
+                            //     // auto msgstr = msg.dump();
+                            //     // clientHandler->sendTo(tarIp,tarPort,localPortStr,msgstr);
+                            // }
+                            // map<std::string,std::vector<std::string>> test;
+                            // json tst(test);
+                            // clientHandler->sendTo(seeRemoteIp,seeRemotePort,localPortStr);
                             //放入到自己的队列中，然后返回给地方其他人的节点信息，
                         }else{
                             //ip 和 port 都相同
                             std::cout << "====== there all the same =====" << std::endl;
                             std::cout << "remote ip: " <<seeRemoteIp <<" remote port: "<< seeRemotePort<<std::endl;
                             std::cout << "local ip: " <<localIpStr<<" local port: "<< localPortInt <<std::endl;
+                            // boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
 
+                            // clientHandler->sendTo(seeRemoteIp,seeRemotePort,localPortStr);
+                            auto pubstr = seeRemoteIp + std::to_string(seeRemotePort);
+                            json nodeInfoSee = {
+                                {"natmapping", "Nonmap"},  //true 表明有mapping 行为
+                                {"natfiltering","Nofilter"},  //true 表明有filtering行为
+                                {"endpoint",{pubstr}}
+                            };
+
+                            auto hostInfos = nodeInfoSee.dump();
+                            //说明是公网Ip 或者是恶意节点 此时增加到publicnode中
+                            //对这个群组的数量进行限定 暂定为3个吧
+                            if( 3 >  pulicNodes.size()){
+                                pulicNodes.insert(nodeInfoSee.dump());
+                            }
+
+                            manHost->addNewNode(hostInfos);
+                            // manHost.
+                            //如果不一样，说明是nat之后，将路由表的信息发送给对方
+                            //这里有个问题，就算不一样也无所谓。广播到所有连接我的人
+                            json tst(manHost->_HostList);
+                            json msg = {
+                                {"msgtype","update"},
+                                {"data",tst}
+                            };
+
+                            for (auto it = manHost->_HostList.begin();it != manHost->_HostList.end();it++){
+                                json parseit(it->second);
+                                auto tarEndPoint = json::parse(parseit[0].get<std::string>());
+                                std::cout<< "test...." <<tarEndPoint<<std::endl;
+
+                                auto tarIpStr = tarEndPoint["ip"].get<std::string>();
+                                auto tarPortInt = tarEndPoint["port"].get<unsigned short>();
+
+                                auto msgstr = msg.dump();
+                                std::cout<< "starting send...." <<msgstr<<std::endl;
+                                clientHandler->sendTo(tarIpStr,tarPortInt,msgstr);
+                            }
                         }
 
                     }else if (msgType == "update"){
                         std::cout<<"update comming"<<std::endl;
-                    }else if (msgType == "holdpunching"){
+                        //update 消息成功收到，然后存到本地 开始发送消息到各个节点，有几个发几个，这里并发的发 逐个发
+                        std::cout<< "update...." <<recvJson["data"]<<std::endl;
+                        //遍历所有的endpoint 除了自己，然后相连
+                        for (auto it = recvJson["data"].begin();it != recvJson["data"].end();it++){
+                            std::cout<< "looping...." <<*it<<std::endl;
+                            auto item = json::parse((*it)[0].get<std::string>());
+                            auto tarIp = item["ip"].get<string>();
+                            auto tarPort = item["port"].get<unsigned short>();
+                            //排除自己的ip
+                            if (item["ip"].get<string>() == _localIp){
+                                std::cout<<"yourself...."<<std::endl;
+                                continue;
+                            }
+                            //否则与其他的节点相连
+                            json msg = {
+                                {"msgtype","connect"},
+                                {"data","justtest"}
+                            };
+                            auto msgstr = msg.dump();
+                            std::cout<< "start sending connect msg...." <<msgstr<<std::endl;
+                            // auto localPortStr = std::to_string(_localPort);
+                            clientHandler->sendTo(tarIp,tarPort,msgstr);
+                        }
+                    }else if (msgType == "connect"){
                         std::cout<<"holdpunching comming"<<std::endl;
+
+                    }else if(msgType == "filteringCheck"){ //走filtering 行为检查
+                        std::cout<<"filteringCheck comming"<<std::endl;
+
+                        //需要做一次保护，只能pulicnodes的节点可以发
+                        localIpStr = recvJson["ip"].get<std::string>();
+                        localPortInt = recvJson["port"].get<unsigned short>();
+                        
+                        json filMsg = {
+                            {"msgtype","callclient"},
+                            {"data","areyouok"}
+                        };
+                        auto filMsgStr = filMsg.dump();
+
+                        clientHandler->sendTo(localIpStr,localPortInt,filMsgStr);
+                        //增加一个定时器 异步等待是否会收到信息
+                        auto keyStr = localIpStr + std::to_string(localPortInt);
+                        //获取当前时间
+                        std::time_t curTime = std::time(nullptr);
+                        fCkTimeMap.insert(std::pair<std::string,std::time_t>(keyStr,curTime));
+                        
+                    }else if(msgType == "callclient"){
+                        std::cout<<"callclient comming"<<std::endl;
+                        //只要收到该类型的消息就可以，不用考虑内容。
+                        //找到除了自己的所有邻居发广播
+                        json filteringMsgR = {
+                                    {"msgtype","callclientRes"},
+                                    {"ip",seeRemoteIp},
+                                    {"port",seeRemotePort}
+                        };
+                        std::string nIp;
+                        unsigned short nPort;
+                        for (auto it = pulicNodes.begin();it != pulicNodes.end();it ++ ){
+                            auto neighRes = json::parse(*it);
+                            nIp = neighRes["ip"].get<std::string>();
+                            nPort = neighRes["port"].get<unsigned short>();
+
+
+                            if (nIp == _localIp){
+                                std::cout<< " myself when sending filteringCheck"<<std::endl; 
+                                continue;
+                            }
+
+                            auto filteringMsgRstr = filteringMsgR.dump();
+                            clientHandler->sendTo(nIp,nPort,filteringMsgRstr);
+                        }
+
+                    }else if (msgType == "callclientRes"){
+                        std::cout << "callclientRes is comming" <<std::endl;
+                        localIpStr = recvJson["ip"].get<std::string>();
+                        localPortInt = recvJson["port"].get<unsigned short>();
+                        auto ipKey =  localIpStr + std::to_string(localPortInt);
+                        //查询本地是否有该节点，如果有
+                        auto findit = manHost->_HostList.find(ipKey);
+                        if(findit !=  manHost->_HostList.end()){
+                            //说明有，则更新下数据
+                            auto findmsg = json::parse(findit->second);
+                            findmsg["natfiltering"] = "NonFilter";
+                            manHost->_HostList.at(ipKey) = findmsg.dump(); // 更新filtering的数据
+
+                            //同时踢出timer中的记录
+                            auto getIt = fCkTimeMap.find(ipKey);
+                            if (fCkTimeMap.end() != getIt){
+                                //说明在20之内收到了回复，则直接删除该记录
+                                fCkTimeMap.erase(getIt);
+                            }
+                        }
                     }else{
                         std::cout<<"not support"<<std::endl;
                     }
@@ -162,4 +381,41 @@ void udpServer::getLocalIP(){
     } catch (std::exception& e){
         std::cerr << "Could not deal with socket. Exception: " << e.what() << std::endl;
     }
+}
+
+//用于定时
+void udpServer::threadhandle(){
+    std::time_t curTimeForCh;
+    std::map<std::string,std::string>::iterator finditkey;
+    json findmsg;
+    while(true){
+        //sleep 5 s之后做处理
+        std::this_thread::sleep_for(std::chrono::seconds(5));
+        //检查list中的发送探测的节点id
+        //对比当前时间与发送时间的间隔，如果超过预设的值，则踢出，并修改状态，认为不同
+        std::cout<<"checking filtering.."<<std::endl;
+        curTimeForCh = std::time(nullptr);
+        for(auto it = fCkTimeMap.begin();it != fCkTimeMap.end();it++){
+            //20s timeout 时间，如果没有收到，则认为不再会收到
+            if(curTimeForCh - it->second > 20){
+                std::cout<<"node Id: "<<it->first << " have remain for more than 20s"<<std::endl;
+                //修改node信息
+                finditkey = manHost->_HostList.find(it->first);
+                if(finditkey !=  manHost->_HostList.end()){
+                    //说明有，则更新下数据
+                    findmsg = json::parse(finditkey->second);
+                    findmsg["natfiltering"] = "NonFilter";
+                    manHost->_HostList.at(it->first) = findmsg.dump(); // 更新filtering的数据
+                }
+                //删除这一条
+                fCkTimeMap.erase(it);
+            }
+        }
+    }
+}
+
+std::string udpServer::genUuid(){
+    random_generator gen;
+    uuid id = gen();
+    return to_string(id);
 }

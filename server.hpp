@@ -5,6 +5,19 @@
 #include <iostream>
 #include "managerhost.hpp"
 #include "client.hpp"
+#include <set>
+
+#include <chrono>
+#include <thread> 
+
+//获取时间
+#include <ctime>
+
+//产生uuid
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
+#include <boost/uuid/uuid_io.hpp>
+using namespace boost::uuids;
 
 
 enum msgTypeEnum { noderegister, update, holdpunching };
@@ -18,17 +31,30 @@ class udpServer{
     public:
         //增加一个list用户存储获取到的node的类型
 
-        udpServer(io_service& io_service,const unsigned short port);
+        udpServer(io_service& io_service,const unsigned short port,bool publicflag);
         ~udpServer(){};
         std::shared_ptr<managerHost> manHost;
         std::shared_ptr<client> clientHandler;
         // udpServer();
         std::shared_ptr<ip::udp::socket>  _socketPtr;
         void getLocalIP();
+
+        std::set<std::string> pulicNodes;
+
+        void threadhandle();
+
+        //map 用于存发送filtering探测的时间点，用于timeout操作
+        std::map<std::string,std::time_t> fCkTimeMap;
+
+        //产生uuid 
+        std::string genUuid();
+
+        std::shared_ptr<thread> threadPtr;
         
     private:
 
         std::string _localIp;
+        unsigned short _localPort;
         // ip::udp::socket _socket;
         std::array<char,10000> _recvBuffer;
         ip::udp::endpoint _remoteEndpoint;
