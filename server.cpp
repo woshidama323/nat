@@ -21,7 +21,7 @@ udpServer::udpServer(io_service& io_service,const unsigned short port,bool publi
     //放在这里，先发送消息到一个服务器中
 
     auto getIp = std::string{""};
-    _localIp = clientHandler->LocalIp(getIp);
+    _localIp = clientHandler->LocalIp(getIp); //std::string{"192.168.65.2"}; //
     _localPort = port;
 
     //启动一个timer线程，用于监控是否收到过应答消息
@@ -67,6 +67,7 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
             //检查是一个有效的json字符串
             if(json::accept(_recvBuffer)){
                 auto recvJson = json::parse(_recvBuffer);
+                std::cout<< "msg+++++++++++++comming " <<  recvJson <<std::endl;
                 if(recvJson.find("msgtype") != recvJson.end()){
                     //说明有这个字段，
                     std::string msgType{""};
@@ -117,11 +118,13 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                             //1。获取到邻居的ip和端口号
                             if (pulicNodes.size()>1){
                                 auto it = pulicNodes.begin();
-                                ++it;
+                                
                                 auto neighber = json::parse(*it);
-                                auto ip = neighber["ip"].get<std::string>();
-                                auto port = neighber["port"].get<unsigned short>();
+                                
+                                auto ip = neighber["endpoint"][0]["ip"].get<std::string>();
+                                auto port = neighber["endpoint"][0]["port"].get<unsigned short>();
 
+                                std::cout << "publicnodes first one: "<< neighber << std::endl;
                                 //消息的内容是目标的ip地址，肯定是mapping之后的目标
                                 json filteringMsgS = {
                                     {"msgtype","filteringCheck"},
@@ -129,6 +132,9 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                                     {"port",seeRemotePort}
                                 };
                                 auto filteringMsg = filteringMsgS.dump();
+                                std::cout<<"more than 2 nodes, staring sending :"
+                                         << "send: "<<filteringMsg
+                                         << std::endl;
                                 clientHandler->sendTo(ip,port,filteringMsg);
 
                             }
@@ -186,9 +192,11 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                             auto hostInfos = nodeInfoSee.dump();
                             //说明是公网Ip 或者是恶意节点 此时增加到publicnode中
                             //对这个群组的数量进行限定 暂定为3个吧
+                            std::cout << "___________" <<pulicNodes.size() << std::endl;
                             if( 3 >  pulicNodes.size()){
                                 pulicNodes.insert(nodeInfoSee.dump());
                             }
+                            std::cout << "___________" <<pulicNodes.size() << std::endl;
 
                             manHost->addNewNode(hostInfos);
                             // manHost.
@@ -200,25 +208,9 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                                 {"msgtype","update"},
                                 {"data",tst}
                             };
-                                std::cout<<"is_object"
-                                         <<tst.is_object()
-                                         <<"is_array"
-                                         <<tst.is_array()
-                                         <<"is_string"
-                                         <<tst.is_string()
-                                         <<tst
-                                         <<std::endl;
                             for (auto it = manHost->_HostList.begin();it != manHost->_HostList.end();it++){
                                 auto tarEndPoint = json::parse(it->second);
-                                std::cout<<"is_object"
-                                         <<tarEndPoint.is_object()
-                                         <<"is_array"
-                                         <<tarEndPoint.is_array()
-                                         <<"is_string"
-                                         <<tarEndPoint.is_string()
-                                         <<tarEndPoint
-                                         <<std::endl;
-                                // return ;
+  
                                 std::cout<< "test...." <<tarEndPoint<<std::endl;
 
                                 auto tarIpStr = tarEndPoint["endpoint"][0]["ip"].get<std::string>();
@@ -235,35 +227,13 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                         //update 消息成功收到，然后存到本地 开始发送消息到各个节点，有几个发几个，这里并发的发 逐个发
                         std::cout<< "update...." <<recvJson["data"]<<std::endl;
                         //遍历所有的endpoint 除了自己，然后相连
-
-                        std::cout<< "looping...." 
-                                     <<"is_object is_array is_string"
-                                     <<recvJson["data"].is_object()
-                                     <<recvJson["data"].is_array()
-                                     <<recvJson["data"].is_string()
-                                     <<recvJson["data"]
-                                     <<std::endl;
                                      
                         for (auto it = recvJson["data"].begin();it != recvJson["data"].end();it++){
-                            std::cout<< "looping...." 
-                                     <<*it
-                                     <<"is_object is_array is_string"
-                                     <<it->is_object()
-                                     <<it->is_array()
-                                     <<it->is_string()
-                                     <<std::endl;
 
                             //map 的字符串只能用着样的方式进行转换
                             //先转成json 然后获取string 在转成json 真麻烦
                             json item(*it);
                             auto itemobj = json::parse(item.get<std::string>());
-                            std::cout<< "item...." 
-                                     <<itemobj
-                                     <<"is_object is_array is_string"
-                                     <<itemobj.is_object()
-                                     <<itemobj.is_array()
-                                     <<itemobj.is_string()
-                                     <<std::endl;
 
                             auto tarIp = itemobj["endpoint"][0]["ip"].get<string>();
                             auto tarPort = itemobj["endpoint"][0]["port"].get<unsigned short>();
@@ -443,7 +413,7 @@ void udpServer::threadhandle(){
         std::this_thread::sleep_for(std::chrono::seconds(5));
         //检查list中的发送探测的节点id
         //对比当前时间与发送时间的间隔，如果超过预设的值，则踢出，并修改状态，认为不同
-        std::cout<<"checking filtering.."<<std::endl;
+        std::cout<<"checking filtering..:"<<fCkTimeMap.size()<<std::endl;
         curTimeForCh = std::time(nullptr);
         for(auto it = fCkTimeMap.begin();it != fCkTimeMap.end();it++){
             //20s timeout 时间，如果没有收到，则认为不再会收到
@@ -465,6 +435,9 @@ void udpServer::threadhandle(){
                 //删除这一条
                 fCkTimeMap.erase(it);
             }
+            //print map info....
+            std::cout<< it->first << ".." <<it->second <<std::endl;
+            
         }
     }
 }

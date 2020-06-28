@@ -8,6 +8,9 @@
 #include "CLI11.hpp"
 
 using namespace std;
+#define MY_TRACE(msg, ...) \
+    MyTrace(__LINE__, __FILE__, msg, __VA_ARGS__)
+
 int main(int argc,char** argv){
 
     CLI::App app("tool for hole punching");
