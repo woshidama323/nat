@@ -45,6 +45,7 @@ udpServer::udpServer(io_service& io_service,const unsigned short port,bool publi
 }
 
 void udpServer::startReceive(){
+    _recvBuffer.fill('\0');
     _socketPtr->async_receive_from(
         boost::asio::buffer(_recvBuffer),
         _remoteEndpoint,
@@ -59,7 +60,8 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
         auto seeRemoteIp = _remoteEndpoint.address().to_string();
         auto seeRemotePort = _remoteEndpoint.port();
 
-        std::cout << seeRemoteIp <<" "<< seeRemotePort<<std::endl;
+        std::string str(std::begin(_recvBuffer), std::end(_recvBuffer));
+        std::cout << "remoteip/port: " <<seeRemoteIp <<"/"<< seeRemotePort << str <<std::endl;
         std::string localIpStr,localPortStr;
         unsigned short localPortInt;
         try
@@ -124,14 +126,19 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                                 auto ip = neighber["endpoint"][0]["ip"].get<std::string>();
                                 auto port = neighber["endpoint"][0]["port"].get<unsigned short>();
 
-                                std::cout << "publicnodes first one: "<< neighber << std::endl;
+                                std::cout << "publicnodes first one: "
+                                          << neighber
+                                          <<"ip:port"
+                                          <<ip
+                                          <<port 
+                                          << std::endl;
                                 //消息的内容是目标的ip地址，肯定是mapping之后的目标
                                 json filteringMsgS = {
-                                    {"msgtype","filteringCheck"},
+                                    {"msgtype","filteringcheck"},
                                     {"ip",seeRemoteIp},
                                     {"port",seeRemotePort}
                                 };
-                                auto filteringMsg = filteringMsgS.dump();
+                                std::string filteringMsg = filteringMsgS.dump();
                                 std::cout<<"more than 2 nodes, staring sending :"
                                          << "send: "<<filteringMsg
                                          << std::endl;
@@ -255,8 +262,8 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                     }else if (msgType == "connect"){
                         std::cout<<"holdpunching comming"<<std::endl;
 
-                    }else if(msgType == "filteringCheck"){ //走filtering 行为检查
-                        std::cout<<"filteringCheck comming"<<std::endl;
+                    }else if(msgType == "filteringcheck"){ //走filtering 行为检查
+                        std::cout<<"filteringcheck comming"<<std::endl;
 
                         //需要做一次保护，只能pulicnodes的节点可以发
                         localIpStr = recvJson["ip"].get<std::string>();
@@ -413,9 +420,10 @@ void udpServer::threadhandle(){
         std::this_thread::sleep_for(std::chrono::seconds(5));
         //检查list中的发送探测的节点id
         //对比当前时间与发送时间的间隔，如果超过预设的值，则踢出，并修改状态，认为不同
-        std::cout<<"checking filtering..:"<<fCkTimeMap.size()<<std::endl;
+        std::cout<<"checking filtering size:"<<fCkTimeMap.size()<<std::endl;
         curTimeForCh = std::time(nullptr);
-        for(auto it = fCkTimeMap.begin();it != fCkTimeMap.end();it++){
+        for(auto it = fCkTimeMap.begin();it != fCkTimeMap.end();){
+            std::cout<<"current checking .... "<< it->first << it->second <<std::endl;
             //20s timeout 时间，如果没有收到，则认为不再会收到
             if(curTimeForCh - it->second > 20){
                 std::cout<<"node Id: "<<it->first << " have remain for more than 20s"<<std::endl;
@@ -433,10 +441,16 @@ void udpServer::threadhandle(){
                     manHost->_HostList.at(it->first) = findmsg.dump(); // 更新filtering的数据
                 }
                 //删除这一条
-                fCkTimeMap.erase(it);
+                std::cout<< "erase it..." <<it->first << ".." <<it->second <<std::endl;
+                fCkTimeMap.erase(it++);
+                
+
+            }else{
+                //print map info....
+                std::cout<< it->first << ".." <<it->second <<std::endl;
+                it++;
             }
-            //print map info....
-            std::cout<< it->first << ".." <<it->second <<std::endl;
+
             
         }
     }
