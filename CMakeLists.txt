@@ -3,7 +3,7 @@ project(natserver)
 add_definitions(-DDEBUG)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-add_executable(server server.cpp client.cpp managerhost.cpp main.cpp)
+add_executable(server server.cpp client.cpp managerhost.cpp dispatchqueue.cpp main.cpp)
 
 SET (BOOST_MIN_VERSION "1.55.0")
 

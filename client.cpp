@@ -26,7 +26,7 @@ std::string client::LocalIp(std::string & ip){
     // return ip;
 }
 
-int client::sendTo(std::string &remoteIp,unsigned short &remotePort,std::string & msg){//,std::string &localPort
+int client::sendTo(std::string &remoteIp,unsigned short &remotePort,const std::string & msg){//,std::string &localPort
     try{
         // io_service bindIoServer;
         // udpServer* udpServer = new udpServer;

@@ -1,6 +1,7 @@
 
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
+#include <boost/algorithm/string.hpp>
 #include "json.hpp"
 #include <iostream>
 #include "managerhost.hpp"
@@ -12,6 +13,9 @@
 
 //获取时间
 #include <ctime>
+
+//dispatch queue
+#include "dispatchqueue.hpp"
 
 //产生uuid
 #include <boost/uuid/uuid.hpp>
@@ -40,16 +44,28 @@ class udpServer{
         void getLocalIP();
 
         std::set<std::string> pulicNodes;
+        
+        //心跳列表
+        std::set<std::string> tickerNodes;
+
+        //心跳返回队列
+        std::map<std::string,std::time_t> tickerNodeRes;
 
         void threadhandle();
+        void msgThread();
 
         //map 用于存发送filtering探测的时间点，用于timeout操作
-        std::map<std::string,std::time_t> fCkTimeMap;
+        std::map<std::string,std::string> fCkTimeMap;
 
         //产生uuid 
         std::string genUuid();
 
-        std::shared_ptr<thread> threadPtr;
+        //update all the routing info
+        void updateRouteInfo();
+
+        std::shared_ptr<thread> threadPtr,threadPtr2;
+
+        dispatch_queue q;
         
     private:
 

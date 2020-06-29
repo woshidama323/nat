@@ -9,7 +9,7 @@ int managerHost::addNewNode(std::string vhostInfo){
     json toString = json::parse(vhostInfo);
     auto k1str = toString["endpoint"][0];
 
-    auto keyString = k1str["ip"].get<std::string>() + std::to_string(k1str["port"].get<unsigned short>());
+    auto keyString = k1str["ip"].get<std::string>() + "_" + std::to_string(k1str["port"].get<unsigned short>());
     _HostList.insert(std::pair<std::string,std::string>(keyString,vhostInfo));
 
     for(auto it = _HostList.begin();it != _HostList.end();it++){
@@ -37,4 +37,13 @@ int managerHost::deleteNode(hostInfo & rmhi){
 
 map<std::string,std::string>  managerHost::getList(){
     return _HostList;
+}
+
+//修改某一个key的值
+int managerHost::changeNode(const std::string & nodeKey,const std::string value){
+    auto it = _HostList.find(nodeKey);
+    if (it != _HostList.end()){
+        it->second = value;
+    }
+    return 0 ;
 }

@@ -42,6 +42,8 @@ class managerHost{
         int deleteNode(hostInfo & rmhi);
 
 
+        int changeNode(const std::string & nodeKey,const std::string value);
+
         map<std::string,std::string> getList();
 
 };
