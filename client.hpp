@@ -3,6 +3,7 @@
 #include "json.hpp"
 #include <boost/lexical_cast.hpp>
 
+#include "encrypto.hpp"
 
 using namespace boost::asio::ip;
 using namespace boost::asio;
@@ -17,4 +18,7 @@ public:
     // ip::udp::socket _clientSocket;
     std::string LocalIp(std::string & ip);
     int sendTo(std::string &remoteIp,unsigned short &remotePort,const std::string & msg);
+
+    std::vector<unsigned char> encrypto(std::string msg);
+    // int decrypto(std::string msg);
 };

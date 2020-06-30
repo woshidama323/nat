@@ -52,6 +52,7 @@ udpServer::udpServer(io_service& io_service,const unsigned short port,bool publi
 
 void udpServer::startReceive(){
     _recvBuffer.fill('\0');
+    // _testbjson;
     _socketPtr->async_receive_from(
         boost::asio::buffer(_recvBuffer),
         _remoteEndpoint,
@@ -64,12 +65,19 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
 
     if (!error || error == boost::asio::error::message_size){
         auto teststr =  _recvBuffer;
+
+        // std::vector<uint8_t> myvector(teststr.begin(), teststr.end());
+        // std::cout<< json::parse(_testbjson.begin(),_testbjson.end()) <<std::endl;
+
+        // auto getjson = json::from_bson(_testbjson);
+
+        auto tmprEp = _remoteEndpoint;
         
-        q.dispatch([&](){ //&表示捕获所enclosing variables by reference
+        q.dispatch([=](){ //&表示捕获所enclosing variables by reference  用= 拷贝的方式
             //假设已经收到了string的数据，
             //收到有效消息之后，获取到对端的ip 和 port 
-            auto seeRemoteIp = _remoteEndpoint.address().to_string();
-            auto seeRemotePort = _remoteEndpoint.port();
+            auto seeRemoteIp = tmprEp.address().to_string();
+            auto seeRemotePort = tmprEp.port();
 
             std::string str(std::begin(teststr), std::end(teststr));
             std::cout << ".....remoteip/port: " <<seeRemoteIp <<"/"<< seeRemotePort << str <<std::endl;
@@ -209,11 +217,18 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                             //遍历所有的endpoint 除了自己，然后相连
                             //更新本地的routing表，然后连接新的节点 
                             // manHost->_HostList
-                                        
+                            auto selfEp = _localIp + "_" + to_string(_localPort);
+                            auto getself = recvJson["data"].find(selfEp);
+                            if (getself != recvJson["data"].end()){
+                                //找到自己，将自己的信息放入到本地
+                                _localEpInfo = getself.value();
+                            }    
+
                             for (auto it = recvJson["data"].begin();it != recvJson["data"].end();it++){
 
                                 //map 的字符串只能用着样的方式进行转换
                                 //先转成json 然后获取string 在转成json 真麻烦
+                                std::cout << "update process.........."<<*it<< std::endl;
                                 json item(*it);
                                 auto itemobj = json::parse(item.get<std::string>());
 
@@ -225,10 +240,11 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                                     std::cout<< "+++++++ does exist in current list: "<<checkKey<<std::endl;
                                     continue;
                                 }
+
                                 //否则与其他的节点相连
                                 json msg = {
                                     {"msgtype","openconnect"},
-                                    {"data",itemobj.dump()} //这里应该是开始连接，根据不同节点的nat类型开始连接
+                                    {"data",_localEpInfo} //这里应该是开始连接，根据不同节点的nat类型开始连接
                                 };
                                 //根据对方的类型来决定如何连接
                                 //1. 是public的
@@ -300,15 +316,21 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                             // 每个人拿到的都是对端的mapping之后的ip port
                             //收到帮助请求之后，收到请求之后，向对端发送连接请求
                             //可能是发送的应答也可能是其他，增加一个msg的id号来区分
+                            
 
                         }
                         else if (msgType == "openconnect"){
-                            std::cout<<"pouching successful"
+                            std::cout<<"-----------------pouching successful "
                                     << "ip: "
                                     << seeRemoteIp
                                     << " port: "
                                     << seeRemotePort
+                                    << "data is :"
+                                    << recvJson["data"].is_object()
+                                    << recvJson["data"].is_string()
+                                    << recvJson["data"].is_array()
                                     <<std::endl;
+                            
                             //开始建立心跳，定时发送信息，加入到心跳队列中
                             //如果对方是public的则直接相连,
                             //则当filtering来处理  收到该请求，返回对方应答
@@ -316,7 +338,7 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                             // tickerNodes.insert(tarEpStr);
                             //加入到自己的list中，心跳的来源也是从这里来的
                             //当收到connect的连接的时候，要相应，如果相应
-
+                            manHost->addNewNode(recvJson["data"]);
                         }
                         else if(msgType == "filteringcheck"){ //走filtering 行为检查
                             std::cout<<"filteringcheck comming"<<std::endl;
@@ -410,6 +432,8 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                         else if (msgType == "tickerRes"){
                             //收到ticker相应之后才能确定该节点依然在线
                             auto msgID = recvJson["msgid"].get<std::string>();
+                            std::cout<< "? ??   ?????? ? ?get msgid:" <<msgID <<std::endl;
+                            
                             auto it = fCkTimeMap.find(msgID);
                             if (it != fCkTimeMap.end()){
                                 fCkTimeMap.erase(it);
@@ -582,13 +606,14 @@ void udpServer::threadhandle(){
                 {"data","hello"},
                 {"msgid",msgID}
             };
+            if(results[0] == _localIp) continue;
             clientHandler->sendTo(results[0],port,tickermsg.dump());
             //发送成功之后，将该消息的id放入到队列中，如果一定的时间之后没有收到，则说明该节点已经不可用，需要一处，并且通知所有人
             std::time_t curTime = std::time(nullptr);
             
             key = "ticker_" + to_string(curTimeForCh) + "_" + tit->first;
             fCkTimeMap.insert(std::pair<std::string,std::string>(msgID,key));
-
+            std::cout << ">>>>>>>>>>>>>"<< msgID <<std::endl;
             results.clear();
         }
 
@@ -622,6 +647,7 @@ void udpServer::updateRouteInfo(){
     // json tst,msg;
     for( auto it =  manHost->_HostList.begin();it != manHost->_HostList.end();it++){
         //遍历所有的信息，然后进行更新
+        std::cout << "#################### " << it->first << "||" << it->second <<std::endl; 
         boost::algorithm::split(results,it->first,boost::is_any_of("_"));
         
         if(results[0] == _localIp) continue;

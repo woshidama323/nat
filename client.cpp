@@ -56,6 +56,8 @@ int client::sendTo(std::string &remoteIp,unsigned short &remotePort,const std::s
         std::cout<<"starting respose:"<<remoteIp<<" port:"<<remotePort<<"msg:"<<msg<<std::endl;
 
         boost::system::error_code errCode;
+        // auto testjson = json::parse(msg);
+        // std::vector<std::uint8_t> bjsontst = json::to_bson(testjson);
         _clientSocket->send_to(buffer(msg),remoteEndPoint,0,errCode);
         
         std::cout<<"finished the sending,error:"<<errCode<<std::endl;
@@ -68,3 +70,43 @@ int client::sendTo(std::string &remoteIp,unsigned short &remotePort,const std::s
     }    
 
 }
+
+std::vector<unsigned char> client::encrypto(std::string msg)
+{
+    // parameters
+    // const std::string raw_data = "Hello, plusaes";
+    const std::vector<unsigned char> key = plusaes::key_from_string(&"helloharryhannah"); // 16-char = 128-bit
+    const unsigned char iv[16] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+    };
+
+
+    // encrypt
+    const unsigned long encrypted_size = plusaes::get_padded_encrypted_size(msg.size());
+    std::vector<unsigned char> encrypted(encrypted_size);
+
+    plusaes::encrypt_cbc((unsigned char*)msg.data(), msg.size(), &key[0], key.size(), &iv, &encrypted[0], encrypted.size(), true);
+    // fb 7b ae 95 d5 0f c5 6f 43 7d 14 6b 6a 29 15 70
+
+
+    // Hello, plusaes
+    return encrypted;
+}
+
+
+// int client::decrypto(std::vector<unsigned char> enmsg){
+//     //parameters
+//     const std::vector<unsigned char> key = plusaes::key_from_string(&"helloharryhannah"); // 16-char = 128-bit
+//     const unsigned char iv[16] = {
+//         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+//         0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+//     };
+
+//     // decrypt
+//     unsigned long padded_size = 0;
+//     std::vector<unsigned char> enmsg(encrypted_size);
+
+//     plusaes::decrypt_cbc(&enmsg[0], enmsg.size(), &key[0], key.size(), &iv, &enmsg[0], decrypted.size(), &padded_size);
+//     return 0;
+// }

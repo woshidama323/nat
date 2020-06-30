@@ -21,6 +21,10 @@
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
+
+//encrypto / dec 
+#include "encrypto.hpp"
+
 using namespace boost::uuids;
 
 
@@ -57,6 +61,9 @@ class udpServer{
         //map 用于存发送filtering探测的时间点，用于timeout操作
         std::map<std::string,std::string> fCkTimeMap;
 
+        //存储本地ep的信息
+        json _localEpInfo;
+
         //产生uuid 
         std::string genUuid();
 
@@ -73,6 +80,7 @@ class udpServer{
         unsigned short _localPort;
         // ip::udp::socket _socket;
         std::array<char,10000> _recvBuffer;
+        // std::vector<uint8_t> _testbjson(10000);
         ip::udp::endpoint _remoteEndpoint;
         void startReceive();
         void handleReceive(const boost::system::error_code &error,std::size_t size);
