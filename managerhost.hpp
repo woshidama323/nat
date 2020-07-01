@@ -36,7 +36,7 @@ class managerHost{
         
         managerHost() = default;
         //增加一个新的节点
-        int addNewNode(std::string vhostInfo);
+        int addNewNode(const std::string & nodeID, const std::string & vhostInfo);
         
         //删除节点
         int deleteNode(hostInfo & rmhi);
@@ -45,5 +45,8 @@ class managerHost{
         int changeNode(const std::string & nodeKey,const std::string value);
 
         map<std::string,std::string> getList();
+
+        void listNodes();
+        std::string getPublicNode(std::string nodeID);
 
 };

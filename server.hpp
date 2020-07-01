@@ -39,7 +39,7 @@ class udpServer{
     public:
         //增加一个list用户存储获取到的node的类型
 
-        udpServer(io_service& io_service,const unsigned short port,bool publicflag);
+        udpServer(io_service& io_service,const unsigned short port,bool publicflag,std::string & localIp);
         ~udpServer(){};
         std::shared_ptr<managerHost> manHost;
         std::shared_ptr<client> clientHandler;
@@ -64,6 +64,8 @@ class udpServer{
         //存储本地ep的信息
         json _localEpInfo;
 
+        bool publicFlag;
+
         //产生uuid 
         std::string genUuid();
 
@@ -73,11 +75,15 @@ class udpServer{
         std::shared_ptr<thread> threadPtr,threadPtr2;
 
         dispatch_queue q;
+
+        std::string _NodeID;
         
     private:
 
         std::string _localIp;
+        std::string _localMappingIp;
         unsigned short _localPort;
+        unsigned short _localMappingPort;
         // ip::udp::socket _socket;
         std::array<char,10000> _recvBuffer;
         // std::vector<uint8_t> _testbjson(10000);
@@ -137,5 +143,6 @@ class udpServer{
 1. 新节点注册请求
 
 2. 目标节点的连接请求
+
 3. 
 */

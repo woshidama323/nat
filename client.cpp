@@ -32,8 +32,8 @@ int client::sendTo(std::string &remoteIp,unsigned short &remotePort,const std::s
         // udpServer* udpServer = new udpServer;
         // auto hello =  new udpServer();
         // hello->getLocalIP();
-        std::string iptmp = "122.29.3.11";
-        auto localIp = LocalIp(iptmp);
+        // std::string iptmp = "122.29.3.11";
+        // auto localIp = LocalIp(iptmp);
         // // std::cout<<hello->_localIp
         //获取本地ip地址，当前服务的port号
         // std::string msg = std::string("{\"msgtype\":\"detect\",\"data\":{\"localip\":\"why\"}}");

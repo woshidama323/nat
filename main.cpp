@@ -43,12 +43,13 @@ int main(int argc,char** argv){
     });
     
     //服务端模式 本地默认为0.0.0.0 
-    std::string remoteServerIp,remoteServerPort,localServerPort;
+    std::string remoteServerIp,remoteServerPort,localServerPort,localIp;
     bool mainNode;
     auto servermode = app.add_subcommand("servermode","a udp server for listening");
     servermode->add_option("-s,--remoteserverip",remoteServerIp,"remote server on public network")->mandatory();
     servermode->add_option("-P,--remoteport",remoteServerPort,"the port of remote server")->mandatory();
     servermode->add_option("-p,--localport",localServerPort,"the port of remote server")->mandatory();
+    servermode->add_option("-i,--ip",localIp,"the port of remote server")->mandatory();
     servermode->add_flag("-m,--mainnode",mainNode,"set as a public node");
  
     
@@ -65,13 +66,15 @@ int main(int argc,char** argv){
             // client sclient(io_service,intLocalPort);
             // sclient.sendTo(remoteServerIp,intRemotePort,localServerPort);
 
-            udpServer server(io_service,intLocalPort,mainNode);
+            udpServer server(io_service,intLocalPort,mainNode,localIp);
 
             //发送探测消息,然后进入监控模型，等待回复，如果有回复，则消息体中会有路由表信息，不论你在不在nat下，都会发
             //获取本地地址
             auto getip = std::string{""};
-            auto localIpInfo = server.clientHandler->LocalIp(getip);
+            // auto localIpInfo = server.clientHandler->LocalIp(getip);
+            auto localIpInfo = localIp;
             json msgj2 = {
+                {"nodeID",server._NodeID},
                 {"msgtype","detect"},
                 {"data",{
                     {"localip",localIpInfo},
