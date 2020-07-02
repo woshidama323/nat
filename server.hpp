@@ -74,9 +74,10 @@ class udpServer{
 
         std::shared_ptr<thread> threadPtr,threadPtr2;
 
-        dispatch_queue q;
+        // dispatch_queue q;
 
         std::string _NodeID;
+        std::string getCurrentTime();
         
     private:
 

@@ -53,7 +53,7 @@ int client::sendTo(std::string &remoteIp,unsigned short &remotePort,const std::s
         boost::system::error_code ignored_error;
         //why need open
         // bindSocket.open(boost::asio::ip::udp::v4());
-        std::cout<<"starting respose:"<<remoteIp<<" port:"<<remotePort<<"msg:"<<msg<<std::endl;
+        std::cout<<"start sending:"<<remoteIp<<" port:"<<remotePort<<"msg:"<<msg<<std::endl;
 
         boost::system::error_code errCode;
         // auto testjson = json::parse(msg);
