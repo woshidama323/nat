@@ -42,9 +42,13 @@ class udpServer{
         udpServer(io_service& io_service,const unsigned short port,bool publicflag,std::string & localIp);
         ~udpServer(){};
         std::shared_ptr<managerHost> manHost;
-        std::shared_ptr<client> clientHandler;
-        // udpServer();
+        // std::shared_ptr<client> clientHandler;
+        // // udpServer();
+        // std::shared_ptr<ip::udp::socket>  _socketPtr;
+        
         std::shared_ptr<ip::udp::socket>  _socketPtr;
+        std::shared_ptr<client> clientHandler;
+       
         void getLocalIP();
 
         std::set<std::string> pulicNodes;
