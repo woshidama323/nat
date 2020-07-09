@@ -18,8 +18,7 @@ SET(CMAKE_EXE_LINKER_FLAGS
 find_package(
   Boost
   ${BOOST_MIN_VERSION}
-  COMPONENTS coroutine filesystem system chrono thread timer
-  REQUIRED)
+ )
 if(Boost_FOUND)
   message(STATUS "Found Boost: " ${Boost_LIBRARIES})
   include_directories(${Boost_INCLUDE_DIRS})

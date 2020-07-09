@@ -60,6 +60,7 @@ class udpServer{
 
         //map 用于存发送filtering探测的时间点，用于timeout操作
         std::map<std::string,std::string> fCkTimeMap;
+        std::map<std::string,unsigned short> tickerNum;
 
         //存储本地ep的信息
         json _localEpInfo;
@@ -78,6 +79,9 @@ class udpServer{
 
         std::string _NodeID;
         std::string getCurrentTime();
+
+        void listMsgQueue();
+
         
     private:
 

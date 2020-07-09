@@ -20,5 +20,7 @@ public:
     int sendTo(std::string &remoteIp,unsigned short &remotePort,const std::string & msg);
 
     std::vector<unsigned char> encrypto(std::string msg);
+
+    std::string getCurrentTime();
     // int decrypto(std::string msg);
 };

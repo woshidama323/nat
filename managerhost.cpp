@@ -58,6 +58,8 @@ void managerHost::listNodes(){
 }
 
 std::string managerHost::getPublicNode(std::string nodeID){
+    std::cout<<"###############++++++++find the public neighber+++++++++########################" <<std::endl;
+    listNodes();
     for(auto it = _HostList.begin();it != _HostList.end();it++){
 
         auto findPub = json::parse(it->second);

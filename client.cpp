@@ -53,7 +53,8 @@ int client::sendTo(std::string &remoteIp,unsigned short &remotePort,const std::s
         boost::system::error_code ignored_error;
         //why need open
         // bindSocket.open(boost::asio::ip::udp::v4());
-        std::cout<<"start sending:"<<remoteIp<<" port:"<<remotePort<<"msg:"<<msg<<std::endl;
+        auto timestr = getCurrentTime();
+        std::cout<<"=="<<timestr<<"start sending:"<<remoteIp<<" port:"<<remotePort<<"msg:"<<msg<<std::endl;
 
         boost::system::error_code errCode;
         // auto testjson = json::parse(msg);
@@ -110,3 +111,11 @@ std::vector<unsigned char> client::encrypto(std::string msg)
 //     plusaes::decrypt_cbc(&enmsg[0], enmsg.size(), &key[0], key.size(), &iv, &enmsg[0], decrypted.size(), &padded_size);
 //     return 0;
 // }
+
+std::string client::getCurrentTime(){
+    std::time_t curTime = std::time(nullptr);
+    tm*  t_tm = localtime(&curTime);
+    std::string removeReturn = asctime(t_tm);
+    removeReturn.pop_back();
+    return removeReturn;
+}
