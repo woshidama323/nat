@@ -592,6 +592,14 @@ void udpServer::handleReceive(const boost::system::error_code &error,std::size_t
                                     {"nodeID",_NodeID},
                                 };
                                 clientHandler->sendTo(seeRemoteIp,seeRemotePort,msgRes.dump());
+
+                                //因为已经收到ticker 说明 从对方到自己是通的这个时候，之前发的也没有必要一定要等到res的消息回来
+                                std::string tcheckpoint;
+                                tcheckpoint = "ticker_" + seeRemoteIp + "_" +to_string(seeRemotePort);
+                                auto findtt = tickerNum.find(tcheckpoint);
+                                if(findtt != tickerNum.end()){
+                                    tickerNum.erase(findtt);
+                                }
                             }
                             else if (msgType == "tickerRes"){
                                 //收到ticker相应之后才能确定该节点依然在线
