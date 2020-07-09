@@ -2,18 +2,21 @@
 #include <boost/lexical_cast.hpp>
 #include <vector>
 
-#define PACKAGENUM 10
+#define PACKAGENUM 60
 
 using namespace boost::asio;
 using namespace boost::asio::ip;
 
-udpServer::udpServer(io_service& io_service,const unsigned short port,bool publicflag,std::string & localIp)
+udpServer::udpServer(io_service& io_service,std::string rip,const unsigned short rport,const unsigned short port,bool publicflag,std::string & localIp)
 :_socketPtr{std::make_shared<ip::udp::socket>(io_service,ip::udp::endpoint(ip::udp::v4(),port))}
 ,clientHandler{make_shared<client>(io_service,port,_socketPtr)}
 ,pulicNodes{}
 ,tickerNodes{}
 ,publicFlag{publicflag}
 ,_NodeID{}
+,_fromCliIp{rip}
+,_fromCliPort{rport}
+,_count{0}
 {// ,q("Phillip's Demo Dispatch Queue", 4)
 
     _NodeID = genUuid();
@@ -925,7 +928,27 @@ void udpServer::listMsgQueue(){
     std::cout << "=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=" << std::endl;
     for(auto it = tickerNum.begin(); it != tickerNum.end();it++ ){
         //list 出来所有time map中的数据
-        std::cout << "key:"<< it->first << " value:"<< it->second<<std::endl;
+        std::cout << "key:"<< it->first << " value:"<< it->second <<std::endl ;
+    }
+
+    std::cout << "------------------------------------------------------" << std::endl;
+    std::cout << " count: "<< _count <<" hostlist:"<<manHost->_HostList.size()<<std::endl ;
+    //这里增加一个功能，如果当前的list中的size 为空或者1个 那么重新发起探测请求
+    if(manHost->_HostList.size()<=1){
+        _count++;
+    }
+    if (_count >= 10){
+        json msgj2 = {
+            {"nodeID",_NodeID},
+            {"msgtype","detect"},
+            {"data",{
+                {"localip",_localIp},
+                {"localport",to_string(_localPort)}
+            }}
+        };
+        auto msg = msgj2.dump();
+        clientHandler->sendTo(_fromCliIp,_fromCliPort,msg);
+        _count = 0;
     }
     std::cout << "=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=" << std::endl;
 }

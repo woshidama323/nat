@@ -39,7 +39,7 @@ class udpServer{
     public:
         //增加一个list用户存储获取到的node的类型
 
-        udpServer(io_service& io_service,const unsigned short port,bool publicflag,std::string & localIp);
+        udpServer(io_service& io_service,std::string rip, const unsigned short rport,const unsigned short port,bool publicflag,std::string & localIp);
         ~udpServer(){};
         std::shared_ptr<managerHost> manHost;
         // std::shared_ptr<client> clientHandler;
@@ -84,6 +84,8 @@ class udpServer{
         std::string _NodeID;
         std::string getCurrentTime();
 
+
+
         void listMsgQueue();
 
         
@@ -97,6 +99,12 @@ class udpServer{
         std::array<char,10000> _recvBuffer;
         // std::vector<uint8_t> _testbjson(10000);
         ip::udp::endpoint _remoteEndpoint;
+
+
+        //每一次启动的时候，放入到自己私有的变量列表中
+        std::string _fromCliIp;
+        unsigned short _fromCliPort;
+        uint _count;
         void startReceive();
         void handleReceive(const boost::system::error_code &error,std::size_t size);
         void sendRequest(std::string msg, const std::string & desIp, const unsigned short desPort);

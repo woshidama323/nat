@@ -66,7 +66,7 @@ int main(int argc,char** argv){
             // client sclient(io_service,intLocalPort);
             // sclient.sendTo(remoteServerIp,intRemotePort,localServerPort);
 
-            udpServer server(io_service,intLocalPort,mainNode,localIp);
+            udpServer server(io_service,remoteServerIp,intRemotePort,intLocalPort,mainNode,localIp);
 
             //发送探测消息,然后进入监控模型，等待回复，如果有回复，则消息体中会有路由表信息，不论你在不在nat下，都会发
             //获取本地地址
