@@ -32,8 +32,6 @@ udpServer::udpServer(io_service& io_service,std::string rip,const unsigned short
     _localIp = localIp;//clientHandler->LocalIp(getIp); //std::string{"192.168.65.2"}; //
     _localPort = port;
 
-
-
     //启动一个timer线程，用于监控是否收到过应答消息
     // std::thread threadFunc(threadhandle);
     //只有public的节点才会启动该线程 将自己放入到publicnode中
@@ -878,7 +876,7 @@ std::string udpServer::genUuid(){
     return to_string(id);
 }
 
-//更新各自的nodeip信息
+//更新各自的node endpoint info信息
 void udpServer::updateRouteInfo(){
     std::cout<< "#################### staring update route info "<<std::endl;
     // std::vector<std::string> results;

@@ -16,7 +16,7 @@ SET(CMAKE_EXE_LINKER_FLAGS
 
 # b2 install 之后将boost放到/usr/include中 因此，find_package可以获取到该路径
 find_package(
-  Boost
+  Boost1
   ${BOOST_MIN_VERSION}
  )
 if(Boost_FOUND)
