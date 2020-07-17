@@ -1,4 +1,3 @@
-
 #include <boost/asio.hpp>
 #include <boost/bind/bind.hpp>
 #include <boost/algorithm/string.hpp>
@@ -10,23 +9,8 @@
 
 #include <chrono>
 #include <thread> 
-
-//获取时间
-#include <ctime>
-
-//dispatch queue
-#include "dispatchqueue.hpp"
-
-//产生uuid
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_generators.hpp>
-#include <boost/uuid/uuid_io.hpp>
-
-//encrypto / dec 
-#include "encrypto.hpp"
-
-using namespace boost::uuids;
-
+#include "log.hpp"
+#include <queue>
 
 enum msgTypeEnum { noderegister, update, holdpunching };
 
@@ -35,59 +19,41 @@ using json = nlohmann::json;
 
 using namespace boost::asio;
 
+/*udpserver主要的职责：
+接收消息
+发送消息
+*/
 class udpServer{
     public:
         //增加一个list用户存储获取到的node的类型
 
-        udpServer(io_service& io_service,std::string rip, const unsigned short rport,const unsigned short port,bool publicflag,std::string & localIp);
+        udpServer(io_service& io_service,
+                  std::string rip, 
+                  const unsigned short rport,
+                  const unsigned short port,
+                  bool publicflag,
+                  std::string & localIp,
+                  std::shared_ptr<std::queue<json>> msgQueuePtr,
+                  std::shared_ptr<std::map<std::string,std::string>> pfCkTimeMapPtr,
+                  std::shared_ptr<std::map<std::string,unsigned short>> ptickerNumPtr
+                  );
         ~udpServer(){};
-        std::shared_ptr<managerHost> manHost;
-        // std::shared_ptr<client> clientHandler;
-        // // udpServer();
-        // std::shared_ptr<ip::udp::socket>  _socketPtr;
-        
         std::shared_ptr<ip::udp::socket>  _socketPtr;
-        std::shared_ptr<client> clientHandler;
-       
         void getLocalIP();
-
-        std::set<std::string> pulicNodes;
-        
-        //心跳列表
-        std::set<std::string> tickerNodes;
-
-        //心跳返回队列
-        std::map<std::string,std::time_t> tickerNodeRes;
-
-        void threadhandle();
-        void msgThread();
-
-        //map 用于存发送filtering探测的时间点，用于timeout操作
-        std::map<std::string,std::string> fCkTimeMap;
-        std::map<std::string,unsigned short> tickerNum;
-
         //存储本地ep的信息
         json _localEpInfo;
 
-        bool publicFlag;
+        //msgqueue 用于传输层发送消息处理请求
+        std::shared_ptr<std::queue<json>> msgQueuePtr;
 
-        //产生uuid 
-        std::string genUuid();
+        //用于发送udp的时候 检查timeout事件的queue
+        std::shared_ptr<std::map<std::string,std::string>> fCkTimeMapPtr;
+        std::shared_ptr<std::map<std::string,unsigned short>> tickerNumPtr;
 
-        //update all the routing info
-        void updateRouteInfo();
-
-        std::shared_ptr<thread> threadPtr,threadPtr2;
-
-        // dispatch_queue q;
-
-        std::string _NodeID;
+    //函数定义
+        //udp发送接口，
+        void sendTo(std::string &remoteIp,unsigned short &remotePort,const std::string & msg);
         std::string getCurrentTime();
-
-
-
-        void listMsgQueue();
-
         
     private:
 
@@ -107,59 +73,6 @@ class udpServer{
         uint _count;
         void startReceive();
         void handleReceive(const boost::system::error_code &error,std::size_t size);
-        void sendRequest(std::string msg, const std::string & desIp, const unsigned short desPort);
+        void primaryCheck(std::string remoteIp,unsigned short remotePort,std::string Msg );
         
 };
-
-/*
-客户端请求的类型有哪一些：
-消息的数据结构（用json的方式进行）
-消息类型：
-
-注册消息
-{
-    "msgtype":"register"
-    "data":{
-        "from":{
-            "ip":"xxx",
-            "port":"xxx",
-            "nattype":"",
-        }
-    }
-}
-
-更新数据
-{
-    "msgtype":"update"
-    "data":{
-        "from":{
-            "ip":"xxx",
-            "port":"xxx",
-            "nattype":"",
-        }
-    }
-}
-
-打洞请求
-{
-    "msgtype":"holdpunching"
-    "data":{
-        "from":{
-            "ip":"xxx",
-            "port":"xxx",
-            "nattype":"",
-        },
-        "to":{
-            "ip":"xxx",
-            "port":"x",
-            nattype:"xxx",
-        },
-    }
-}
-
-1. 新节点注册请求
-
-2. 目标节点的连接请求
-
-3. 
-*/

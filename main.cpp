@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "CLI11.hpp"
+#include "Node.hpp"
 
 using namespace std;
 #define MY_TRACE(msg, ...) \
@@ -54,7 +55,16 @@ int main(int argc,char** argv){
  
     
     servermode->callback([&](){
-        //1.向远程发送bind请求
+        
+        /*
+            1.实例化node类
+                1.1 设置本地node id
+                1.2 启动udpserver （两个）
+                1.3 启动dispatchqueue
+            2.
+        */
+        
+            
         //2.启动udp监听,主动请求。
         try
         {
@@ -66,23 +76,24 @@ int main(int argc,char** argv){
             // client sclient(io_service,intLocalPort);
             // sclient.sendTo(remoteServerIp,intRemotePort,localServerPort);
 
-            udpServer server(io_service,remoteServerIp,intRemotePort,intLocalPort,mainNode,localIp);
+            Node node(io_service,remoteServerIp,intRemotePort,intLocalPort,mainNode,localIp);
 
             //发送探测消息,然后进入监控模型，等待回复，如果有回复，则消息体中会有路由表信息，不论你在不在nat下，都会发
+            node.startDetect();
             //获取本地地址
-            auto getip = std::string{""};
-            // auto localIpInfo = server.clientHandler->LocalIp(getip);
-            auto localIpInfo = localIp;
-            json msgj2 = {
-                {"nodeID",server._NodeID},
-                {"msgtype","detect"},
-                {"data",{
-                    {"localip",localIpInfo},
-                    {"localport",localServerPort}
-                }}
-            };
-            auto msg = msgj2.dump();
-            server.clientHandler->sendTo(remoteServerIp,intRemotePort,msg);
+            // auto getip = std::string{""};
+            // // auto localIpInfo = server.clientHandler->LocalIp(getip);
+            // auto localIpInfo = localIp;
+            // json msgj2 = {
+            //     {"nodeID",server._NodeID},
+            //     {"msgtype","detect"},
+            //     {"data",{
+            //         {"localip",localIpInfo},
+            //         {"localport",localServerPort}
+            //     }}
+            // };
+            // auto msg = msgj2.dump();
+            // server.clientHandler->sendTo(remoteServerIp,intRemotePort,msg);
             
             //创建一个定时线程
             // std::thread threadFunc(server.threadhandle);

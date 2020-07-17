@@ -23,20 +23,8 @@ int managerHost::addNewNode(const std::string & nodeID, const std::string & vhos
 
 //删除节点
 int managerHost::deleteNode(hostInfo & rmhi){
-
-    // auto isExist = find(_HostList.begin(),_HostList.end(),rmhi);
-    // if (isExist != _HostList.end()){
-    //     //说明里面有，直接删除
-    //     _HostList.erase(isExist);
-    //     return 0;
-    // }
-    
-    //没有找到 不需要删除
+    //todo 
     return 1;
-}
-
-map<std::string,std::string>  managerHost::getList(){
-    return _HostList;
 }
 
 //修改某一个key的值
@@ -63,10 +51,14 @@ std::string managerHost::getPublicNode(std::string nodeID){
     for(auto it = _HostList.begin();it != _HostList.end();it++){
 
         auto findPub = json::parse(it->second);
-        if(findPub["natmapping"].get<std::string>() == "Nonmap" && findPub["natfiltering"].get<std::string>() == "Nonfilter" && nodeID != it->first){
+        if(findPub["natmapping"].get<std::string>() == "EndPointIndependent" && 
+           findPub["natfiltering"].get<std::string>() == "EndPointIndependent" && 
+           nodeID != it->first)
+        {
              std::cout << "key:"<< it->first << " value:"<< it->second<<std::endl;
             return it->second;
         }
+
     }
     return std::string{};
 }
